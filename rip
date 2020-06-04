@@ -1,0 +1,97 @@
+#!/bin/bash
+# wrapper for handbrake, reducing option set
+
+LANG=C
+set -euo pipefail
+
+DOCKER_IMAGE="jlesage/handbrake"
+DRIVE="/dev/dvd"
+CONTAINER_OPTS="--rm  -e TZ=Europe/Berlin" 
+CONTAINER_OPTS+="--device $DRIVE"
+CONTAINER_OPTS+="--name handbrake"
+SUBTITLE_OPT='--subtitle-lang-list eng, ger'
+AUDIO_OPT='--audio-lang-list ger, eng'
+QUALITY_OPT='--quality 18'
+TARGET_DIR='.'
+X264_LEVEL='3.1' 
+
+get_title() {
+	lsblk -n -o LABEL "$DRIVE" | tr '[:upper:]' '[:lower:]' | sed -e 's/_/ /g'
+}
+
+while [ $# -gt 0 ] ; do
+	case $1 in
+		-s|--scan)
+			echo "* determining dvd title"
+			get_title
+			echo "* scanning main title for chapters, audio and subtitle info, please wait ..."
+			docker run  $CONTAINER_OPTS $DOCKER_IMAGE\
+			HandBrakeCLI -i $DRIVE -t 0 --main-feature 2>&1 \
+			| grep -E '^\s+\+ '  \
+			|| : 	# ignore error
+			exit 0
+		;;
+		-u|--sub)	# specify 1,2,3
+			shift
+			SUBTITLE_OPT="--subtitle $1"
+			shift
+		;;
+		-a|--audio)	# specify 1,2,3
+			shift
+			AUDIO_OPT="--audio $1"
+			shift
+		;;
+		-q|--quality)	# specify 19 or 22
+			shift
+			QUALITY_OPT="--quality $1"
+			shift
+		;;
+		-t|--targetdir)	# specify target directory path
+			shift
+			TARGET_DIR="$1"
+			shift
+		;;
+		-n|--name)	# specify title like "Der Film Name"
+			shift
+			FILM_NAME="$1"
+			mkdir --parents -- "$TARGET_DIR"
+			shift
+		;;
+		*)
+			echo "bad option \"$1\", stopping"
+			exit 1
+		;;
+	esac
+
+done
+
+if [[ -z "${FILM_NAME}" ]]; then
+	FILM_NAME="$(get_title)"
+fi
+
+TARGET_DIR="$TARGET_DIR/$FILM_NAME"
+
+echo "Rip dvd $DRIVE to \"$(readlink -f "$TARGET_DIR")/$FILM_NAME.mkv\""
+mkdir --parents -- "$TARGET_DIR"
+
+docker run  $CONTAINER_OPTS \
+	-v "$(readlink -f "$TARGET_DIR"):/output" \
+	$DOCKER_IMAGE \
+	HandBrakeCLI -i "$DRIVE" \
+	--ab 320 \
+	--aencoder ca_haac \
+	--encoder x264 \
+	--encoder-level $X264_LEVEL \
+	--encoder-preset slow \
+	--encoder-tune film \
+	--format mkv \
+	--main-feature \
+	--markers \
+	--optimize \
+	--output "/output/${FILM_NAME}.mkv" \
+	--previews 5:1 \
+	--vfr \
+	$AUDIO_OPT \
+	$SUBTITLE_OPT \
+	$QUALITY_OPT \
+&& eject $DRIVE
