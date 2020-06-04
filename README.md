@@ -19,7 +19,7 @@ See [Wikipedia H.264][] for more details.
 Main options and commands
 -------------------------
 
-Run the script to scan main title for chapters, audio and subtitle info. Thsi information may be useful for the actual ripping in the next step
+Run the script to scan main title for chapters, audio and subtitle info. This information may be useful for the actual ripping in the next step
 
 	./rip --scan
 	./rip -s
@@ -28,7 +28,7 @@ After this, start ripping - eventually apply the following options:
 
 * `-u|--sub`: select subtitles like `1,2,3` 
 * `-a|--audio`: select audio track like `1,2,3` 
-* `-q|--quality`: specify quality option `20` or `22` for improving quality - default is 18 (see "quality settings" comment above)
+* `-q|--quality`: specify quality option `20` or `22` for improving quality - default is `18` (read "quality settings" comment above)
 * `-t|--targetdir`: directory where movie is to be stored in (a subdirectory will be created named like the movie)
 * `-n|--name`: specify title like "Der Film Name" 
 
